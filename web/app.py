@@ -1,5 +1,5 @@
 """
-AEGIS — FastAPI application entry point.
+TIRPAN — FastAPI application entry point.
 
 Serves static frontend and provides:
   - REST API at /api/v1/...
@@ -78,6 +78,37 @@ async def lifespan(app: FastAPI):
     tool_registry.register(MetasploitTool())
     tool_registry.register(SSHTool())
     tool_registry.register(ShellSessionTool())
+
+    # V2 tools — registered if available; graceful degradation if binary missing
+    from tools.masscan_tool import MasscanTool
+    from tools.nuclei_tool import NucleiTool
+    from tools.ffuf_tool import FfufTool
+    from tools.whatweb_tool import WhatWebTool
+    from tools.nikto_tool import NiktoTool
+    from tools.theharvester_tool import TheHarvesterTool
+    from tools.subfinder_tool import SubfinderTool
+    from tools.whois_tool import WhoisTool
+    from tools.dns_tool import DnsTool
+    from tools.crackmapexec_tool import CrackMapExecTool
+    from tools.impacket_tool import ImpacketTool
+    from tools.report_finding_tool import ReportFindingTool
+    from tools.generate_report_tool import GenerateReportTool
+
+    for _tool in (MasscanTool(), NucleiTool(), FfufTool(), WhatWebTool(),
+                  NiktoTool(), TheHarvesterTool(), SubfinderTool(),
+                  WhoisTool(), DnsTool(), CrackMapExecTool(), ImpacketTool(),
+                  ReportFindingTool(), GenerateReportTool()):
+        tool_registry.register(_tool)
+
+    # Import specialized agents so they self-register into BrainAgent registry
+    import core.agents.scanner_agent      # noqa: F401
+    import core.agents.exploit_agent      # noqa: F401
+    import core.agents.postexploit_agent  # noqa: F401
+    import core.agents.webapp_agent       # noqa: F401
+    import core.agents.osint_agent        # noqa: F401
+    import core.agents.lateral_agent      # noqa: F401
+    import core.agents.reporting_agent    # noqa: F401
+
     tool_registry.load_plugins(Path("plugins/"))
 
     yield
@@ -89,11 +120,11 @@ def create_app() -> FastAPI:
     from fastapi.exceptions import RequestValidationError
     from fastapi.responses import JSONResponse
 
-    application = FastAPI(title="AEGIS", version="0.1.0", lifespan=lifespan)
+    application = FastAPI(title="TIRPAN", version="0.1.0", lifespan=lifespan)
 
     @application.exception_handler(RequestValidationError)
     async def validation_error_handler(request, exc):
-        logging.getLogger("aegis.validation").error(
+        logging.getLogger("tirpan.validation").error(
             "422 on %s: %s", request.url.path, exc.errors()
         )
         return JSONResponse(status_code=422, content={"detail": exc.errors()})
